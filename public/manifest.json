@@ -1,0 +1,36 @@
+{
+    "manifest_version": 3,
+    "name": "Flow Video Automation",
+    "version": "1.0.0",
+    "description": "Automate video creation on Google Flow with multiple prompts",
+    "permissions": [
+        "activeTab",
+        "storage",
+        "tabs",
+        "downloads",
+        "scripting"
+    ],
+    "host_permissions": [
+        "*://labs.google/*"
+    ],
+    "action": {
+        "default_popup": "index.html",
+        "default_title": "Flow Video Automation"
+    },
+    "background": {
+        "service_worker": "background/serviceWorker.js",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": ["*://labs.google/fx/tools/flow*"],
+            "js": ["content/flowContentScript.js"],
+            "run_at": "document_idle"
+        }
+    ],
+    "icons": {
+        "16": "vite.svg",
+        "48": "vite.svg",
+        "128": "vite.svg"
+    }
+}
