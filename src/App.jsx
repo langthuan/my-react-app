@@ -51,60 +51,32 @@ function App() {
   const handleDownloadAll = async () => {
     setIsDownloading(true)
     try {
-      // Kiểm tra xem đã có video links chưa
-      let urls = await getAllVideoUrls()
-      const validUrls = urls.filter(item => item && item.url)
+      // Mỗi lần click "Download All" sẽ LUÔN LUÔN tìm lại video trên trang (không dùng cache)
+      setStatus('Đang tìm lại tất cả video trên trang và bắt đầu download...')
       
-      // Nếu chưa có video links, thử lấy link từ trang Flow
-      if (validUrls.length === 0) {
-        setStatus('Chưa có video links. Đang lấy link từ trang Flow...')
-        try {
-          // Gửi message để lấy link
-          await sendMessage({
-            type: 'COLLECT_ALL_VIDEO_LINKS'
-          })
-          
-          // Đợi một chút để lấy link
-          await new Promise(resolve => setTimeout(resolve, 5000))
-          
-          // Kiểm tra lại
-          urls = await getAllVideoUrls()
-          const newValidUrls = urls.filter(item => item && item.url)
-          
-          if (newValidUrls.length === 0) {
-            alert('Không tìm thấy video nào trên trang Flow. Vui lòng đảm bảo đã chạy prompts và video đã được tạo.')
-            setStatus('')
-            return
-          }
-          
-          setStatus(`Đã lấy được ${newValidUrls.length} video links. Bắt đầu download...`)
-        } catch (error) {
-          console.error('Error collecting links:', error)
-          alert('Không thể lấy link video. Vui lòng đảm bảo trang Flow đang mở và đã có video được tạo.')
-          setStatus('')
-          return
-        }
-      }
-      
-      // Download tất cả video
-      const finalUrls = await getAllVideoUrls()
-      const finalValidUrls = finalUrls.filter(item => item && item.url)
-      
-      if (finalValidUrls.length === 0) {
-        alert('Không có video nào để download!')
+      try {
+        // Gửi message để tìm lại video và download
+        await sendMessage({
+          type: 'COLLECT_ALL_VIDEO_LINKS'
+        })
+        
+        // Việc download đã được thực hiện trực tiếp trong handleCollectAllVideoLinks
+        // Không cần đợi hay kiểm tra storage nữa
+        setStatus('Đã bắt đầu quá trình download tất cả video...')
+      } catch (error) {
+        console.error('Error collecting links:', error)
+        alert('Không thể lấy link video. Vui lòng đảm bảo trang Flow đang mở và đã có video được tạo.')
         setStatus('')
+        setIsDownloading(false)
         return
       }
-      
-      await downloadAllVideos()
-      alert(`Đã bắt đầu download ${finalValidUrls.length} video!`)
-      setStatus('')
     } catch (error) {
       console.error('Error downloading videos:', error)
       alert(`Lỗi khi download: ${error.message}`)
       setStatus('')
     } finally {
-      setIsDownloading(false)
+      // Không set isDownloading = false ngay vì quá trình download có thể đang diễn ra
+      // Có thể để status update từ content script quản lý
     }
   }
 
