@@ -1374,12 +1374,25 @@ async function handleCollectAllVideoLinks() {
       type: 'STATUS_UPDATE',
       status: `✅ Đã hoàn thành xử lý và kích hoạt download cho tất cả ${videos.length} video!`
     }).catch(() => {})
+    
+    // Gửi message để báo rằng quá trình xử lý đã hoàn tất
+    chrome.runtime.sendMessage({
+      type: 'COLLECTION_COMPLETED',
+      videoCount: videos.length
+    }).catch(() => {})
   } catch (error) {
     console.error('Error collecting video links:', error)
     chrome.runtime.sendMessage({
       type: 'VIDEO_ERROR',
       promptIndex: -1,
       error: `Lỗi khi lấy link: ${error.message}`
+    }).catch(() => {})
+    
+    // Gửi message để báo rằng quá trình xử lý đã kết thúc (có lỗi)
+    chrome.runtime.sendMessage({
+      type: 'COLLECTION_COMPLETED',
+      videoCount: 0,
+      error: error.message
     }).catch(() => {})
   }
 }

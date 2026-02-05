@@ -116,6 +116,18 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse({ success: true })
         break
 
+      case 'COLLECTION_COMPLETED':
+        // Forward to popup
+        chrome.runtime.sendMessage({
+          type: 'COLLECTION_COMPLETED',
+          videoCount: message.videoCount,
+          error: message.error
+        }).catch(() => {
+          // Popup might be closed, ignore error
+        })
+        sendResponse({ success: true })
+        break
+
       default:
         sendResponse({ success: false, error: 'Unknown message type' })
     }

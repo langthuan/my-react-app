@@ -37,6 +37,11 @@ function App() {
       if (message.type === 'VIDEO_COMPLETED') {
         // Update video count when a new video link is collected
         getVideoCount().then(count => setVideoCount(count))
+      } else if (message.type === 'COLLECTION_COMPLETED') {
+        // Quá trình xử lý video đã hoàn tất, enable lại nút Download all
+        setIsDownloading(false)
+        // Update video count
+        getVideoCount().then(count => setVideoCount(count))
       }
     }
 
