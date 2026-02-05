@@ -239,8 +239,35 @@ function handleStopQueue() {
 
 async function handleCollectAllVideoLinks() {
   try {
+    // If flowTabId is not set, try to find or open Flow tab
     if (!flowTabId) {
-      throw new Error('Flow tab not found')
+      // Check if Flow tab already exists
+      const tabs = await chrome.tabs.query({ url: '*://labs.google/fx/tools/flow*' })
+      
+      if (tabs.length > 0) {
+        flowTabId = tabs[0].id
+      } else {
+        // Open Flow tab if it doesn't exist
+        const tab = await chrome.tabs.create({ url: FLOW_URL })
+        flowTabId = tab.id
+        // Wait for page to load
+        await waitForTabReady(flowTabId)
+      }
+    } else {
+      // Verify the tab still exists
+      try {
+        await chrome.tabs.get(flowTabId)
+      } catch (e) {
+        // Tab was closed, find or create a new one
+        const tabs = await chrome.tabs.query({ url: '*://labs.google/fx/tools/flow*' })
+        if (tabs.length > 0) {
+          flowTabId = tabs[0].id
+        } else {
+          const tab = await chrome.tabs.create({ url: FLOW_URL })
+          flowTabId = tab.id
+          await waitForTabReady(flowTabId)
+        }
+      }
     }
 
     // reset collection state + storage
@@ -257,10 +284,48 @@ async function handleCollectAllVideoLinks() {
       status: 'Đang click nút Download trên Flow để lấy link thật...',
     }).catch(() => {})
 
-    // Send message to content script to trigger downloads (we capture URLs via downloads.onCreated)
-    await chrome.tabs.sendMessage(flowTabId, {
-      type: 'COLLECT_ALL_VIDEO_LINKS'
-    })
+    // Try to send message to content script with retry mechanism
+    let retries = 0
+    const maxRetries = 3
+    
+    while (retries < maxRetries) {
+      try {
+        // Check if content script is loaded by sending a ping
+        try {
+          await chrome.tabs.sendMessage(flowTabId, { type: 'PING' })
+        } catch (pingError) {
+          // Content script not loaded, inject it
+          if (pingError.message.includes('Could not establish connection')) {
+            await chrome.scripting.executeScript({
+              target: { tabId: flowTabId },
+              files: ['content/flowContentScript.js']
+            })
+            
+            // Wait longer for script to fully initialize
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            
+            // Wait for page to be ready
+            await waitForTabReady(flowTabId)
+            await new Promise(resolve => setTimeout(resolve, 1000))
+          }
+        }
+        
+        // Now send the actual message
+        await chrome.tabs.sendMessage(flowTabId, {
+          type: 'COLLECT_ALL_VIDEO_LINKS'
+        })
+        
+        // Success, break out of retry loop
+        break
+      } catch (error) {
+        retries++
+        if (retries >= maxRetries) {
+          throw new Error(`Không thể gửi message đến content script sau ${maxRetries} lần thử: ${error.message}`)
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+    }
   } catch (error) {
     console.error('Error collecting video links:', error)
     chrome.runtime.sendMessage({
